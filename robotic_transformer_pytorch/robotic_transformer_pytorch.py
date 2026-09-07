@@ -33,7 +33,7 @@ def unpack_one(x, ps, pattern):
     return unpack(x, ps, pattern)[0]
 
 # sinusoidal positions
-
+# 经典 Transformer 的 sin/cos 位置编码，给帧加位置编码
 def posemb_sincos_1d(seq, dim, temperature = 10000, device = None, dtype = torch.float32):
     n = torch.arange(seq, device = device)
     omega = torch.arange(dim // 2, device = device) / (dim // 2 - 1)
@@ -44,8 +44,9 @@ def posemb_sincos_1d(seq, dim, temperature = 10000, device = None, dtype = torch
     return pos_emb.type(dtype)
 
 # helper classes
+# Modula是pytorch基类；super指向基类即modula，即调用modula的构造函数；forward是pytorch默认调用的方法
 
-class Residual(Module):
+class Residual(Module):  # 残差连接
     def __init__(self, fn):
         super().__init__()
         self.fn = fn
@@ -53,38 +54,39 @@ class Residual(Module):
     def forward(self, x):
         return self.fn(x) + x
 
-class LayerNorm(Module):
+class LayerNorm(Module):  # 层归一化，公式y = gamma * (x - mean) / sqrt(var + eps) + beta
     def __init__(self, dim):
         super().__init__()
+        # gamma使用nn.Parameter，会出现在model.parameter中，可学习，而beta不学习
         self.gamma = nn.Parameter(torch.ones(dim))
         self.register_buffer("beta", torch.zeros(dim))
 
     def forward(self, x):
         return F.layer_norm(x, x.shape[-1:], self.gamma, self.beta)
 
-class FeedForward(Module):
+class FeedForward(Module):  # 前馈神经网络FFN，包含两层全连接变换
     def __init__(self, dim, mult = 4, dropout = 0.):
         super().__init__()
         inner_dim = int(dim * mult)
         self.norm = LayerNorm(dim)
 
         self.net = nn.Sequential(
-            nn.Linear(dim, inner_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
+            nn.Linear(dim, inner_dim),  # 连接输入和隐藏层
+            nn.GELU(),                  # 激活函数
+            nn.Dropout(dropout),        # 训练时随机把一部分神经元的输出置 0（比例=dropout），防止过拟合；评估时自动失效
             nn.Linear(inner_dim, dim),
             nn.Dropout(dropout)
         )
     def forward(self, x, cond_fn = None):
-        x = self.norm(x)
+        x = self.norm(x)                # 先归一化
 
-        if exists(cond_fn):
+        if exists(cond_fn):             # 在RT-1里是自适应 LayerNorm：用文本条件调制特征
             # adaptive layernorm
             x = cond_fn(x)
 
         return self.net(x)
 
-# MBConv
+# MBConv卷积块
 
 class SqueezeExcitation(Module):
     def __init__(self, dim, shrinkage_rate = 0.25):

@@ -50,12 +50,11 @@ train_logits = model(video, instructions) # (2, 6, 11, 256) # (batch, frames, ac
 
 model.eval()
 eval_logits = model(video, instructions, cond_scale = 3.) # classifier free guidance with conditional scale of 3
-
 ```
 
 ## Appreciation
 
-- <a href="https://stability.ai/">Stability.ai</a> for the generous sponsorship to work and open source cutting edge artificial intelligence research
+* <a href="https://stability.ai/">Stability.ai</a> for the generous sponsorship to work and open source cutting edge artificial intelligence research
 
 
 ## Todo
@@ -92,3 +91,5 @@ eval_logits = model(video, instructions, cond_scale = 3.) # classifier free guid
     primaryClass = {cs.CV}
 }
 ```
+
+
